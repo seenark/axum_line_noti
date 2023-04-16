@@ -5,14 +5,14 @@ FROM rust:1.68.0-alpine AS builder
 # Adding necessary packages
 RUN apk update
 RUN apk add pkgconfig openssl openssl-dev musl-dev
-
+RUN apk add --update qemu-x86_64
 # RUN rustup target add aarch64-unknown-linux-musl
 RUN rustup target add x86_64-unknown-linux-musl
 # RUN rustup toolchain install stable-aarch64-unknown-linux-musl
 
 # Set working directory in container; make directory if not exists
-RUN mkdir -p /usr/src/rama
-WORKDIR /usr/src/rama
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
 
 # Copy all files from local computer to container
 COPY Cargo.toml .
@@ -27,12 +27,13 @@ RUN cargo build --target x86_64-unknown-linux-musl --release
 
 # STAGE 2 is to have smallest image possible by including only necessary binary
 # Use smallest base image
-FROM shinsenter/scratch
+# FROM shinsenter/scratch
 
 # Copy application binary from STAGE 1 image to STAGE 2 image
-# rama_fake is app name that define in Cargo.toml
-COPY --from=builder /usr/src/rama/target/x86_64-unknown-linux-musl/release/rust_axum /
+FROM busybox:musl
+# rust_axum is app name that define in Cargo.toml
+COPY --from=builder /usr/src/app/target/x86_64-unknown-linux-musl/release/rust_axum /bin/rust_axum
 
 EXPOSE 8080
 
-ENTRYPOINT ["/rust_axum"]
+ENTRYPOINT ["/bin/rust_axum"]

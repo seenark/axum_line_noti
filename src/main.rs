@@ -2,11 +2,12 @@ use std::{net::SocketAddr, str::FromStr};
 
 use axum::{
     body,
+    http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
-use reqwest::StatusCode;
+// use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use tower_http::cors::{Any, CorsLayer};
 
@@ -37,19 +38,23 @@ async fn main() {
         .unwrap();
 }
 
-async fn send_line_msg(Json(payload): Json<MsgToBeSend>) -> impl IntoResponse {
+async fn send_line_msg(Json(payload): Json<MsgToBeSend>) -> (StatusCode, LineMsg) {
+    println!("line msg post request");
     let token = "E0f4wLwsZSbGrAvws6MS9q5w6E5mqZRG9dZQWTM7X8F";
     let pan_pot_token = "xES1E8rQit5fxWkfQWohuowNCE7Tcb23kbMSvsYUC8Y";
     let token_to_use = match payload.group.as_str() {
         "PanPot" => pan_pot_token.to_owned(),
-        _ => token.to_owned()
+        _ => token.to_owned(),
     };
+    println!("after get token_to_use");
     let bearer = format!("Bearer {}", token_to_use);
     let url = "https://notify-api.line.me/api/notify";
     let msg = format!("\n ข้อความ 💬:  {} \n จาก 👱: {}", payload.msg, payload.name);
     let line_msg = LineMsg { message: msg };
+    println!("after line_msg");
 
     let client = reqwest::Client::new();
+    println!("after create client");
     let res = client
         .post(url)
         .header("Authorization", bearer)
@@ -57,7 +62,7 @@ async fn send_line_msg(Json(payload): Json<MsgToBeSend>) -> impl IntoResponse {
         .form(&line_msg)
         .send()
         .await;
-    println!("res: {:?}", res);
+    println!("res body string: {:?}", res);
     match res {
         Ok(_) => (StatusCode::OK, line_msg),
         Err(err) => {
