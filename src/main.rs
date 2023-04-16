@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, str::FromStr};
 
 use axum::{
     body,
@@ -26,10 +26,12 @@ async fn main() {
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    tracing::debug!("listening on {}", addr);
-    println!("axum server starting on {}", "0.0.0.0:3000");
-    axum::Server::bind(&addr)
+    let port = std::env::var("PORT").unwrap_or("8080".to_string());
+    // let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let addr = SocketAddr::from_str(format!("0.0.0.0:{port}").as_str());
+    tracing::debug!("listening on {:?}", addr);
+    println!("axum server starting on 0.0.0.0:{}", port);
+    axum::Server::bind(&addr.unwrap())
         .serve(app.into_make_service())
         .await
         .unwrap();
@@ -37,9 +39,14 @@ async fn main() {
 
 async fn send_line_msg(Json(payload): Json<MsgToBeSend>) -> impl IntoResponse {
     let token = "E0f4wLwsZSbGrAvws6MS9q5w6E5mqZRG9dZQWTM7X8F";
-    let bearer = format!("Bearer {}", token);
+    let pan_pot_token = "xES1E8rQit5fxWkfQWohuowNCE7Tcb23kbMSvsYUC8Y";
+    let token_to_use = match payload.group.as_str() {
+        "PanPot" => pan_pot_token.to_owned(),
+        _ => token.to_owned()
+    };
+    let bearer = format!("Bearer {}", token_to_use);
     let url = "https://notify-api.line.me/api/notify";
-    let msg = format!("\n ข้อความ: {} \n จาก: {}", payload.msg, payload.name);
+    let msg = format!("\n ข้อความ 💬:  {} \n จาก 👱: {}", payload.msg, payload.name);
     let line_msg = LineMsg { message: msg };
 
     let client = reqwest::Client::new();
@@ -64,6 +71,7 @@ async fn send_line_msg(Json(payload): Json<MsgToBeSend>) -> impl IntoResponse {
 struct MsgToBeSend {
     msg: String,
     name: String,
+    group: String,
 }
 
 #[derive(Serialize)]
